@@ -1,11 +1,12 @@
-Id('player').getBoundingClientRect()<template>
+<template>
     <div class="main" v-hotkey="keymap">
         <div class="frame" :class="{blur: vars.collided || vars.paused}">
             <div class="board">
                 <h4>score {{ score }}</h4>
-                <p>FUD: {{ getRandomFUD() }}</p>
-                <div class="notify" :class="{show: vars.slowmo}">
-                    <p>Press '{{ vars.power_keys[Math.floor(Math.random() * vars.power_keys.length)] }}' to slowmo for '{{ vars.timeout }}' secs</p>
+                <p class="fud">Time: {{ vars.timeout }} show: {{ vars.show_slowmo_tip_timeout }} FUD: {{ currentFUD }}</p>
+                <div class="notify" :class="{show: vars.show_slowmo_tip || vars.slowmo}">
+                    <p v-if="vars.show_slowmo_tip">Press '{{ vars.power_key }}' to slowmo for '{{ vars.timeout }}' secs</p>
+                    <p v-if="vars.slowmo">Slowmo expires in {{ vars.timeout }}</p>
                 </div>
             </div>
 
@@ -94,6 +95,7 @@ export default {
                 'No KYC/AML',
                 'Toxic Fans'
             ],
+            currentFUD: null,
             colors: {
                 'purple': '#bf7dfe',
                 'pink': '#f07aee',
@@ -104,21 +106,25 @@ export default {
                 'green': '#66e654',
             },
             vars: {
-                bars_gap: 200,
-                bars_gap_offset: 20,
                 bars_ypos: 0,
                 bars_ypos_alt: 150,
                 speed: 0.7000,
                 speed_alt: 0.6900,
-                timeout: 5, // For slow downs
-                cached_speed: null, // for caching previous speed
+                timeout: 10, // For slow downs
+                show_slowmo_tip_timeout: 5,
+                cached_factor: null, // for caching previous speed 'speed'
                 frozen: true,
                 paused: false,
                 factor: 0.7500, // increases by 0.5 every 10 points
                 ticker_fn: null, // store interval function
                 game_fn: null,
+                score_fn: null,
+                power_key: null,
                 power_keys: ['k','a','w','d','f','x','g','t','p','j'],
+                locked_power_key: false,
+                show_slowmo_tip: false,
                 slowmo: false,
+                locked: false,
                 collided: false, // GAME OVER trigger
                 player_dist: 15, // player movement dist
                 player_offset: 0, // increases every 10 points to keep up with the dropping bars
@@ -127,6 +133,8 @@ export default {
         }
     },
     mounted() {
+        this.currentFUD = this.getRandomFUD()
+
         this.colorBars()
 
         Id('player').style.left = String(this.vars.player_pos) + 'px'
@@ -138,8 +146,13 @@ export default {
         this.setRandomLastBarsXPos()
     },
     watch: {
+        collided() {
+            // We don't want hidden overcounting
+            clearInterval(this.vars.ticker_fn)
+            clearInterval(this.vars.game_fn)
+        },
         gameFreeze() {
-            this.vars.ticker_fn = setInterval(() => {
+            this.vars.ticker_fn = !this.vars.frozen ? setInterval(() => {
                 // Drop divs
                 if (!(this.vars.collided || this.vars.paused || this.vars.frozen)) {
                     this.vars.bars_ypos += this.vars.speed + (this.vars.speed * this.vars.factor)
@@ -150,11 +163,14 @@ export default {
 
                     Id('bars-holder-alt').style.top = String(this.vars.bars_ypos_alt) + 'px'
                 }
-            }, 10)
+            }, 10) : null
 
-            this.vars.game_fn = setInterval(() => {
+
+
+            this.vars.game_fn = !this.vars.frozen ? setInterval(() => {
                 this.updateGame()
-            }, 500)
+            }, 500) : null
+
         },
         barsYpos() {
             if (this.isBelowPlayer(Id('bars-holder'))) {
@@ -162,11 +178,15 @@ export default {
             }
 
             if (this.isInvisible(Id('bars-holder'))) {
+                this.currentFUD = this.getRandomFUD()
+
                 // We don't want our bars climbing each other
                 if (this.vars.bars_ypos_alt > (window.innerHeight / 2)-120) {
-                    this.vars.bars_ypos = -75
-                } else {
                     this.vars.bars_ypos = 0
+                }
+
+                if (this.vars.bars_ypos_alt < (window.innerHeight/2)-120) {
+                    this.vars.bars_ypos = -75
                 }
 
                 this.colorBars()
@@ -181,11 +201,15 @@ export default {
             }
 
             if (this.isInvisible(Id('bars-holder-alt'))) {
+                this.currentFUD = this.getRandomFUD()
+
                 // We don't want our bars climbing each other
                 if (this.vars.bars_ypos > (window.innerHeight / 2)-120) {
-                    this.vars.bars_ypos_alt = -75
-                } else {
                     this.vars.bars_ypos_alt = 0
+                }
+
+                if (this.vars.bars_ypos < (window.innerHeight/2)-120) {
+                    this.vars.bars_ypos_alt = -75
                 }
 
                 this.colorBars()
@@ -196,16 +220,34 @@ export default {
         }
     },
     methods: {
+        handle_power_key() {
+            if (this.vars.show_slowmo_tip && event.key == this.vars.power_key) {
+                this.vars.show_slowmo_tip = false
+                this.vars.slowmo = true
+
+                console.log('> ', this.vars.factor, this.vars.cached_factor)
+                // Cache speed here
+                this.vars.cached_factor = this.vars.factor
+
+                // Set slower speed
+                this.vars.factor = 0.7500
+                console.log('>> ', this.vars.factor, this.vars.cached_factor)
+            }
+        },
         getRandomFUD() {
             return this.fud[Math.trunc(Math.random() * this.fud.length)]
         },
         setRandomFirstBarsXPos() {
+            // Twice the randomness? I doubt
             let random_gap = Math.random()*(window.innerWidth-170)+170
+            random_gap = Math.random()*(window.innerWidth-170)+170
 
             random_gap > ((window.innerWidth-170) / 2) ? Id('last-bar').style.paddingLeft = String((window.innerWidth-170) - random_gap) + 'px' : Id('first-bar').style.paddingRight = String((window.innerWidth-170) - random_gap) + 'px'
         },
         setRandomLastBarsXPos() {
+            // Whats the worst that could happen?
             let random_gap = Math.random()*(window.innerWidth-170)+170
+            random_gap = Math.random()*(window.innerWidth-170)+170
 
             random_gap > ((window.innerWidth-170) / 2) ? Id('last-bar-alt').style.paddingLeft = String((window.innerWidth-170) - random_gap) + 'px' : Id('first-bar-alt').style.paddingRight = String((window.innerWidth-170) - random_gap) + 'px'
         },
@@ -257,26 +299,50 @@ export default {
             }
 
             // Speed game up after every +10 points
-            if (this.score > 0 && this.score % 2 == 0) {
+            if (this.score > 0 && this.score % 2 == 0 && !this.vars.collided) {
                 this.vars.factor += 0.05
                 this.vars.player_offset += 0.2
             }
 
             // Slow game down
-            /*if (this.coins > 20) {
-                console.log('mmm')
-                this.vars.cached_speed = this.vars.speed
-                this.vars.speed = 0.5
-            }*/
+            // Trigger 'power_key' press option
+            if (this.score > 0 && this.score % 5 == 0 && !this.vars.collided && !this.vars.locked_power_key && !this.vars.slowmo && !this.vars.paused && !this.vars.collided) {
+                this.vars.show_slowmo_tip = true
+                this.vars.power_key = this.vars.power_keys[Math.floor(Math.random() * this.vars.power_keys.length)]
+                this.vars.locked_power_key = true
+            }
 
-            // reduce timer ticker
-            /*if (this.vars.timeout <= 0) {
-                console.log('ttt')
-                this.vars.speed = this.vars.cached_speed
-                this.vars.cached_speed = 0
-            } else {
+            // Start countdown for 'show_slowmo_tip'
+            if (this.vars.show_slowmo_tip && this.vars.show_slowmo_tip_timeout > 0) {
+                this.vars.show_slowmo_tip_timeout -= 1
+            }
+
+            // If 'show_slowmo_tip' is over, reset timeout and show var
+            if (this.vars.show_slowmo_tip && this.vars.show_slowmo_tip_timeout == 0) {
+                this.vars.show_slowmo_tip_timeout = 5
+                this.vars.show_slowmo_tip = false
+                this.vars.locked_power_key = false
+            }
+
+            // countdown code for slowmo
+            if (this.vars.slowmo && this.vars.timeout > 0) {
+                this.vars.show_slowmo_tip_timeout = 5
+                this.vars.locked_power_key = false
+
                 this.vars.timeout -= 1
-            }*/
+            }
+
+            // If 'timeout' slowmo is done
+            if (this.vars.slowmo && this.vars.timeout == 0) {
+                this.vars.slowmo = false
+                this.vars.timeout = 10
+
+                // restore speed factor
+                this.vars.factor = this.vars.cached_factor
+
+                // clear speed factor cache
+                this.vars.cached_factor = null
+            }
         },
         move(pos) {
             if (!(this.vars.collided || this.vars.paused)) {
@@ -300,9 +366,6 @@ export default {
         moveRight() {
             this.move('right')
         },
-        mute() {
-            console.log('muted')
-        },
         pause() {
             if (this.vars.collided) {
                 this.reset()
@@ -318,31 +381,37 @@ export default {
             if (this.vars.collided) {
                 this.score = 0
                 this.vars = {
-                    bars_gap: 200,
-                    bars_gap_offset: 20,
                     bars_ypos: 0,
                     bars_ypos_alt: 150,
                     speed: 0.7000,
                     speed_alt: 0.6900,
-                    timeout: 5, // For slow downs
+                    timeout: 10, // For slow downs
+                    show_slowmo_tip_timeout: 5,
                     cached_speed: null, // for caching previous speed
-                    frozen: false,
+                    frozen: true,
                     paused: false,
                     factor: 0.7500, // increases by 0.5 every 10 points
                     ticker_fn: null, // store interval function
                     game_fn: null,
+                    power_key: null,
                     power_keys: ['k','a','w','d','f','x','g','t','p','j'],
+                    locked_power_key: false,
+                    show_slowmo_tip: false,
+                    slowmo: false,
+                    locked: false,
                     collided: false, // GAME OVER trigger
                     player_dist: 15, // player movement dist
                     player_offset: 0, // increases every 10 points to keep up with the dropping bars
                     player_pos: window.innerWidth / 2 - 30, // Player current pos
                 }
 
+                Id('player').style.left = String(this.vars.player_pos) + 'px'
                 Id('bars-holder').style.top = String(this.vars.bars_ypos) + 'px'
-
                 Id('bars-holder-alt').style.top = String(this.vars.bars_ypos_alt) + 'px'
 
-                Id('player').style.left = String(this.vars.player_pos) + 'px'
+                // To set x pos of gap
+                this.setRandomFirstBarsXPos()
+                this.setRandomLastBarsXPos()
             }
 
             this.colorBars()
@@ -353,16 +422,37 @@ export default {
             return buildMap([
                 'left',
                 'right',
-                'ctrl+m',
                 'space',
-                'enter'
+                'enter',
+                'k',
+                'a',
+                'w',
+                'd',
+                'f',
+                'x',
+                'g',
+                't',
+                'p',
+                'j'
             ], [
                 this.moveLeft,
                 this.moveRight,
-                this.mute,
                 this.pause,
-                this.reset
+                this.reset,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key,
+                this.handle_power_key
             ])
+        },
+        collided() {
+            return this.vars.collided
         },
         gameFreeze() {
             return this.vars.frozen
@@ -463,7 +553,7 @@ h1 {
     margin-bottom: 10px;
 }
 
-.board p {
+.fud  {
     margin-right: 30px;
     margin-top: 40px;
 }
@@ -489,7 +579,7 @@ h4 {
     justify-content: center;
     display: flex;
     top: 20px;
-    right: 10px;
+    left: 20vw;
     position: absolute;
     height: 50px;
     visibility: hidden;

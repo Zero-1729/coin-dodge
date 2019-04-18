@@ -17,6 +17,9 @@ As the FUD bars increase their speed as they approach you can slow them down by 
 npm install
 ```
 
+> Note: You'll need to install Vue-Cli 3
+
+
 ### Compiles and hot-reloads for development
 ```
 npm run serve
