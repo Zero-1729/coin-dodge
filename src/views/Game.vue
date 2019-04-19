@@ -178,10 +178,11 @@ export default {
             }
 
             if (this.isInvisible(Id('bars-holder')) && !this.vars.paused) {
-                this.currentFUD = this.getRandomFUD()
-
                 // Keeps falling till other bar is almost gone
-                this.vars.bars_ypos = this.vars.bars_ypos_alt > window.innerHeight - 150 ? 0 : this.vars.bars_ypos
+                if (this.vars.bars_ypos_alt > window.innerHeight - 150) {
+                    this.currentFUD = this.getRandomFUD()
+                    this.vars.bars_ypos = 0
+                }
 
                 this.colorBars()
 
@@ -195,10 +196,11 @@ export default {
             }
 
             if (this.isInvisible(Id('bars-holder-alt')) && !this.vars.paused) {
-                this.currentFUD = this.getRandomFUD()
-
-                // Keeps falling till other bar is almost gone
-                this.vars.bars_ypos_alt = this.vars.bars_ypos > window.innerHeight - 150 ? 0 : this.vars.bars_ypos_alt
+                if (this.vars.bars_ypos > window.innerHeight - 150) {
+                    // Keeps falling till other bar is almost gone
+                    this.vars.bars_ypos_alt = 0
+                    this.currentFUD = this.getRandomFUD()
+                }
 
                 this.colorBars()
 
