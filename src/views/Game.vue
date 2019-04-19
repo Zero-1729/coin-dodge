@@ -173,15 +173,12 @@ export default {
 
         },
         barsYpos() {
-            if (this.isBelowPlayer(Id('bars-holder'))) {
-                this.score += 1
-            }
-
             if (this.isInvisible(Id('bars-holder')) && !this.vars.paused) {
                 // Keeps falling till other bar is almost gone
                 if (this.vars.bars_ypos_alt > window.innerHeight - 150) {
                     this.currentFUD = this.getRandomFUD()
                     this.vars.bars_ypos = 0
+                    this.score += 1
                 }
 
                 this.colorBars()
@@ -191,15 +188,12 @@ export default {
             }
         },
         barsAltYpos() {
-            if (this.isBelowPlayer(Id('bars-holder-alt'))) {
-                this.score += 1
-            }
-
             if (this.isInvisible(Id('bars-holder-alt')) && !this.vars.paused) {
                 if (this.vars.bars_ypos > window.innerHeight - 150) {
                     // Keeps falling till other bar is almost gone
                     this.vars.bars_ypos_alt = 0
                     this.currentFUD = this.getRandomFUD()
+                    this.score += 1
                 }
 
                 this.colorBars()
@@ -243,12 +237,6 @@ export default {
             let box = el.getBoundingClientRect()
 
             return box.y > Math.trunc(window.innerHeight+75)
-        },
-        isBelowPlayer(el) {
-            let box = Id('player').getBoundingClientRect()
-            let box_two = el.getBoundingClientRect()
-
-            return Math.trunc(box_two.y - box.y) == 100 || Math.trunc(box_two.y - box.y) == 0
         },
         checkCollision(div_a, div_b) {
             return !(
