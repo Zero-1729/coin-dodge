@@ -106,25 +106,22 @@ export default {
                 'green': '#66e654',
             },
             vars: {
-                bars_ypos: 0,
-                bars_ypos_alt: 150,
+                bars_ypos: 150,
+                bars_ypos_alt: 300,
                 speed: 0.7000,
-                speed_alt: 0.6900,
-                timeout: 10, // For slow downs
-                show_slowmo_tip_timeout: 5,
+                timeout: 15, // For slow downs
+                show_slowmo_tip_timeout: 8,
                 cached_factor: null, // for caching previous speed 'speed'
                 frozen: true,
                 paused: false,
                 factor: 0.7500, // increases by 0.5 every 10 points
                 ticker_fn: null, // store interval function
                 game_fn: null,
-                score_fn: null,
                 power_key: null,
                 power_keys: ['k','a','w','d','f','x','g','t','p','j'],
                 locked_power_key: false,
                 show_slowmo_tip: false,
                 slowmo: false,
-                locked: false,
                 collided: false, // GAME OVER trigger
                 player_dist: 15, // player movement dist
                 player_offset: 0, // increases every 10 points to keep up with the dropping bars
@@ -157,7 +154,7 @@ export default {
                 if (!(this.vars.collided || this.vars.paused || this.vars.frozen)) {
                     this.vars.bars_ypos += this.vars.speed + (this.vars.speed * this.vars.factor)
 
-                    this.vars.bars_ypos_alt += this.vars.speed_alt + (this.vars.speed_alt * this.vars.factor)
+                    this.vars.bars_ypos_alt += this.vars.speed + (this.vars.speed * this.vars.factor)
 
                     Id('bars-holder').style.top = String(this.vars.bars_ypos) + 'px'
 
@@ -181,13 +178,7 @@ export default {
                 this.currentFUD = this.getRandomFUD()
 
                 // We don't want our bars climbing each other
-                if (this.vars.bars_ypos_alt > (window.innerHeight / 2)-120) {
-                    this.vars.bars_ypos = 0
-                }
-
-                if (this.vars.bars_ypos_alt < (window.innerHeight/2)-120) {
-                    this.vars.bars_ypos = -75
-                }
+                this.vars.bars_ypos = 0
 
                 this.colorBars()
 
@@ -204,13 +195,7 @@ export default {
                 this.currentFUD = this.getRandomFUD()
 
                 // We don't want our bars climbing each other
-                if (this.vars.bars_ypos > (window.innerHeight / 2)-120) {
-                    this.vars.bars_ypos_alt = 0
-                }
-
-                if (this.vars.bars_ypos < (window.innerHeight/2)-120) {
-                    this.vars.bars_ypos_alt = -75
-                }
+                this.vars.bars_ypos_alt = 0
 
                 this.colorBars()
 
@@ -225,13 +210,11 @@ export default {
                 this.vars.show_slowmo_tip = false
                 this.vars.slowmo = true
 
-                console.log('> ', this.vars.factor, this.vars.cached_factor)
                 // Cache speed here
                 this.vars.cached_factor = this.vars.factor
 
                 // Set slower speed
                 this.vars.factor = 0.7500
-                console.log('>> ', this.vars.factor, this.vars.cached_factor)
             }
         },
         getRandomFUD() {
@@ -298,15 +281,15 @@ export default {
                 this.vars.collided = true
             }
 
-            // Speed game up after every +10 points
-            if (this.score > 0 && this.score % 2 == 0 && !this.vars.collided) {
+            // Speed game up after every +5 points
+            if (this.score > 0 && this.score % 5 == 0 && !this.vars.collided) {
                 this.vars.factor += 0.05
                 this.vars.player_offset += 0.2
             }
 
-            // Slow game down
+            // Slow game down option appears every +15points
             // Trigger 'power_key' press option
-            if (this.score > 0 && this.score % 5 == 0 && !this.vars.collided && !this.vars.locked_power_key && !this.vars.slowmo && !this.vars.paused && !this.vars.collided) {
+            if (this.score > 0 && this.score % 15 == 0 && !this.vars.collided && !this.vars.locked_power_key && !this.vars.slowmo && !this.vars.paused && !this.vars.collided) {
                 this.vars.show_slowmo_tip = true
                 this.vars.power_key = this.vars.power_keys[Math.floor(Math.random() * this.vars.power_keys.length)]
                 this.vars.locked_power_key = true
@@ -319,14 +302,14 @@ export default {
 
             // If 'show_slowmo_tip' is over, reset timeout and show var
             if (this.vars.show_slowmo_tip && this.vars.show_slowmo_tip_timeout == 0) {
-                this.vars.show_slowmo_tip_timeout = 5
+                this.vars.show_slowmo_tip_timeout = 8
                 this.vars.show_slowmo_tip = false
                 this.vars.locked_power_key = false
             }
 
             // countdown code for slowmo
             if (this.vars.slowmo && this.vars.timeout > 0) {
-                this.vars.show_slowmo_tip_timeout = 5
+                this.vars.show_slowmo_tip_timeout = 8
                 this.vars.locked_power_key = false
 
                 this.vars.timeout -= 1
@@ -335,7 +318,7 @@ export default {
             // If 'timeout' slowmo is done
             if (this.vars.slowmo && this.vars.timeout == 0) {
                 this.vars.slowmo = false
-                this.vars.timeout = 10
+                this.vars.timeout = 15
 
                 // restore speed factor
                 this.vars.factor = this.vars.cached_factor
@@ -381,13 +364,12 @@ export default {
             if (this.vars.collided) {
                 this.score = 0
                 this.vars = {
-                    bars_ypos: 0,
-                    bars_ypos_alt: 150,
+                    bars_ypos: 150,
+                    bars_ypos_alt: 300,
                     speed: 0.7000,
-                    speed_alt: 0.6900,
-                    timeout: 10, // For slow downs
-                    show_slowmo_tip_timeout: 5,
-                    cached_speed: null, // for caching previous speed
+                    timeout: 15, // For slow downs
+                    show_slowmo_tip_timeout: 8,
+                    cached_factor: null, // for caching previous speed 'speed'
                     frozen: true,
                     paused: false,
                     factor: 0.7500, // increases by 0.5 every 10 points
@@ -398,7 +380,6 @@ export default {
                     locked_power_key: false,
                     show_slowmo_tip: false,
                     slowmo: false,
-                    locked: false,
                     collided: false, // GAME OVER trigger
                     player_dist: 15, // player movement dist
                     player_offset: 0, // increases every 10 points to keep up with the dropping bars
@@ -547,6 +528,8 @@ h1 {
 }
 
 .board {
+    position: absolute;
+    width: 100%;
     display: flex;
     flex-flow: row;
     justify-content: space-between;
