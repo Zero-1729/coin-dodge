@@ -3,7 +3,7 @@
         <div class="frame" :class="{blur: vars.collided || vars.paused}">
             <div class="board">
                 <h4>score {{ score }}</h4>
-                <p class="fud">Time: {{ vars.timeout }} show: {{ vars.show_slowmo_tip_timeout }} FUD: {{ currentFUD }}</p>
+                <p class="fud">FUD: {{ currentFUD }}</p>
                 <div class="notify" :class="{show: vars.show_slowmo_tip || vars.slowmo}">
                     <p v-if="vars.show_slowmo_tip">Press '{{ vars.power_key }}' to slowmo for '{{ vars.timeout }}' secs</p>
                     <p v-if="vars.slowmo">Slowmo expires in {{ vars.timeout }}</p>
@@ -106,8 +106,8 @@ export default {
                 'green': '#66e654',
             },
             vars: {
-                bars_ypos: 150,
-                bars_ypos_alt: 300,
+                bars_ypos: 125,
+                bars_ypos_alt: 275,
                 speed: 0.7000,
                 timeout: 15, // For slow downs
                 show_slowmo_tip_timeout: 8,
@@ -117,6 +117,7 @@ export default {
                 factor: 0.7500, // increases by 0.5 every 10 points
                 ticker_fn: null, // store interval function
                 game_fn: null,
+                collision_fn: null,
                 power_key: null,
                 power_keys: ['k','a','w','d','f','x','g','t','p','j'],
                 locked_power_key: false,
@@ -147,13 +148,13 @@ export default {
             // We don't want hidden overcounting
             clearInterval(this.vars.ticker_fn)
             clearInterval(this.vars.game_fn)
+            clearInterval(this.vars.collision_fn)
         },
         gameFreeze() {
             this.vars.ticker_fn = !this.vars.frozen ? setInterval(() => {
                 // Drop divs
                 if (!(this.vars.collided || this.vars.paused || this.vars.frozen)) {
                     this.vars.bars_ypos += this.vars.speed + (this.vars.speed * this.vars.factor)
-
                     this.vars.bars_ypos_alt += this.vars.speed + (this.vars.speed * this.vars.factor)
 
                     Id('bars-holder').style.top = String(this.vars.bars_ypos) + 'px'
@@ -162,7 +163,9 @@ export default {
                 }
             }, 10) : null
 
-
+            this.vars.collision_fn = !this.vars.frozen ? setInterval(() => {
+                this.updateCollisions()
+            }, 200) : null
 
             this.vars.game_fn = !this.vars.frozen ? setInterval(() => {
                 this.updateGame()
@@ -174,11 +177,11 @@ export default {
                 this.score += 1
             }
 
-            if (this.isInvisible(Id('bars-holder'))) {
+            if (this.isInvisible(Id('bars-holder')) && !this.vars.paused) {
                 this.currentFUD = this.getRandomFUD()
 
-                // We don't want our bars climbing each other
-                this.vars.bars_ypos = 0
+                // Keeps falling till other bar is almost gone
+                this.vars.bars_ypos = this.vars.bars_ypos_alt > window.innerHeight - 150 ? 0 : this.vars.bars_ypos
 
                 this.colorBars()
 
@@ -191,11 +194,11 @@ export default {
                 this.score += 1
             }
 
-            if (this.isInvisible(Id('bars-holder-alt'))) {
+            if (this.isInvisible(Id('bars-holder-alt')) && !this.vars.paused) {
                 this.currentFUD = this.getRandomFUD()
 
-                // We don't want our bars climbing each other
-                this.vars.bars_ypos_alt = 0
+                // Keeps falling till other bar is almost gone
+                this.vars.bars_ypos_alt = this.vars.bars_ypos > window.innerHeight - 150 ? 0 : this.vars.bars_ypos_alt
 
                 this.colorBars()
 
@@ -222,10 +225,10 @@ export default {
         },
         setRandomFirstBarsXPos() {
             // Twice the randomness? I doubt
-            let random_gap = Math.random()*(window.innerWidth-170)+170
-            random_gap = Math.random()*(window.innerWidth-170)+170
+            let random_gap = Math.random()*(window.innerWidth-150)+150
+            random_gap = Math.random()*(window.innerWidth-150)+150
 
-            random_gap > ((window.innerWidth-170) / 2) ? Id('last-bar').style.paddingLeft = String((window.innerWidth-170) - random_gap) + 'px' : Id('first-bar').style.paddingRight = String((window.innerWidth-170) - random_gap) + 'px'
+            random_gap > ((window.innerWidth-150) / 2) ? Id('last-bar').style.paddingLeft = String((window.innerWidth-150) - random_gap) + 'px' : Id('first-bar').style.paddingRight = String((window.innerWidth-150) - random_gap) + 'px'
         },
         setRandomLastBarsXPos() {
             // Whats the worst that could happen?
@@ -237,7 +240,7 @@ export default {
         isInvisible(el) {
             let box = el.getBoundingClientRect()
 
-            return box.y > (window.innerHeight+75)
+            return box.y > Math.trunc(window.innerHeight+75)
         },
         isBelowPlayer(el) {
             let box = Id('player').getBoundingClientRect()
@@ -274,15 +277,16 @@ export default {
             Id('first-bar-alt').style.background = this.getRandomColor()
             Id('last-bar-alt').style.background = this.getRandomColor()
         },
-        updateGame() {
+        updateCollisions() {
             // Check for body collision; GAME OVER
             if (this.hasCollided() && !this.paused) {
                 // Game over
                 this.vars.collided = true
             }
-
-            // Speed game up after every +5 points
-            if (this.score > 0 && this.score % 5 == 0 && !this.vars.collided) {
+        },
+        updateGame() {
+            // Speed game up after every +10 points
+            if (this.score > 0 && this.score % 2 == 0 && !this.vars.collided) {
                 this.vars.factor += 0.05
                 this.vars.player_offset += 0.2
             }
@@ -364,8 +368,8 @@ export default {
             if (this.vars.collided) {
                 this.score = 0
                 this.vars = {
-                    bars_ypos: 150,
-                    bars_ypos_alt: 300,
+                    bars_ypos: 125,
+                    bars_ypos_alt: 275,
                     speed: 0.7000,
                     timeout: 15, // For slow downs
                     show_slowmo_tip_timeout: 8,
@@ -375,6 +379,7 @@ export default {
                     factor: 0.7500, // increases by 0.5 every 10 points
                     ticker_fn: null, // store interval function
                     game_fn: null,
+                    collision_fn: null,
                     power_key: null,
                     power_keys: ['k','a','w','d','f','x','g','t','p','j'],
                     locked_power_key: false,
